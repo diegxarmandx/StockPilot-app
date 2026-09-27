@@ -1,0 +1,19 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+# Build/dependency output
+**/node_modules/
+**/dist/
+**/target/
+**/.vite/
+**/playwright-report/
+**/test-results/
+# Local tooling and editors
+.local/
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
