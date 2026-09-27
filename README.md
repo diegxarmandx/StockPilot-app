@@ -210,7 +210,8 @@ If port 5432 is occupied, change `LOCAL_DB_PORT` and use the same port in the lo
 | `DB_USERNAME` | **Required; no default** | Database username from the selected connection mode |
 | `DB_PASSWORD` | **Required; no default** | Database password, backend only |
 | `VITE_API_BASE_URL` | `http://localhost:8080` | Frontend API origin, without `/api` suffix |
-| `SERVER_PORT` | `8080` | Backend HTTP port |
+| `SERVER_PORT` | `8080` | Local backend HTTP port; leave unset on Vercel |
+| `PORT` | Unset | Platform HTTP port; set to `8080` in the Vercel backend project |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated frontend origins |
 | `SHOW_SQL` | `false` | Development SQL logging |
 | `SPRING_PROFILES_ACTIVE` | Empty | `dev` permits opt-in sample seeding |
@@ -497,6 +498,10 @@ Key screens for a portfolio walkthrough:
 Screenshots are intentionally not committed. To add them, capture these four screens from a clean, approved dataset at a consistent desktop viewport (1440 × 1000 is suitable), review for private business information, then save selected images under `docs/screenshots/` and link them here. Playwright generates review screenshots in ignored `frontend/test-results/`; those include disposable test fixtures and are not portfolio assets. Its UI checks also cover 320, 390, 768, 1024, 1440 and 1920px widths, keyboard drawer navigation, loading/error/empty states and long content.
 
 See [Phase 4 verification](docs/phase4-verification.md) for executed checks, visual findings and intentional scope limits.
+
+## Vercel deployment
+
+The frontend and backend are prepared as separate Vercel projects. See [deployment settings and verification](docs/vercel-deployment.md) for the Java 21 container, production profile, environment variables, SPA routing, CORS and deployment order. Nothing is deployed automatically by these files.
 
 ## Current limits
 

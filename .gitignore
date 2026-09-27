@@ -12,6 +12,7 @@
 **/test-results/
 # Local tooling and editors
 .local/
+**/.vercel/
 .idea/
 .vscode/
 *.iml

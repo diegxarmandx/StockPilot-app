@@ -1,0 +1,23 @@
+# Existing schema only: production startup must not create or alter database objects.
+spring:
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: ${SHOW_SQL:false}
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:5}
+      minimum-idle: 0
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+server:
+  address: 0.0.0.0
+  shutdown: graceful
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  seed:
+    enabled: false
