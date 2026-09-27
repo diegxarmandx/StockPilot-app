@@ -16,6 +16,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(PurchaseOrderException.class)
+    ResponseEntity<ApiError> purchaseOrder(PurchaseOrderException ex) {
+        return error(ex.getStatus(), ex.getCode(), ex.getMessage(), Map.of());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiError> notFound(ResourceNotFoundException ex) {
         return error(404, ex.getCode(), ex.getMessage(), Map.of());

@@ -3,24 +3,24 @@ import { test, expect } from '@playwright/test'
 const apiUrl = process.env.E2E_API_BASE_URL || 'http://localhost:8080'
 const runId = Date.now().toString(36)
 
-test('health, seeded catalog, and phase placeholders render', async ({ page }, testInfo) => {
+test('health, seeded catalog, and purchase order navigation render', async ({
+  page,
+  request,
+}, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto('/products')
   await expect(page).toHaveTitle('Products · StockPilot')
   await expect(page.getByRole('link', { name: 'StockPilot home' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Check API status' })).toHaveText(
-    'API Status: Connected',
-  )
+  expect((await request.get(`${apiUrl}/api/health`)).status()).toBe(200)
+  await expect(page.getByText('API Status:', { exact: false })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible()
   await expect(page.getByRole('table')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('products-desktop.png'), fullPage: true })
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Operations overview' })).toBeVisible()
-  await page.getByRole('link', { name: 'Purchase Orders Soon' }).click()
-  await expect(
-    page.getByText('Purchase order workflow will be implemented in Phase 2.'),
-  ).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await page.getByRole('link', { name: 'Purchase Orders', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Purchase Orders', exact: true })).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -31,14 +31,14 @@ test('product UI creates, validates duplicate, edits, searches, filters, and dea
   const sku = `UI-${runId}`
   const name = `Safety gloves ${runId}`
   await page.goto('/products')
-  await page.getByRole('link', { name: 'New product', exact: true }).click()
+  await page.getByRole('link', { name: 'Add product', exact: true }).click()
   await page.getByLabel('SKU', { exact: false }).fill(sku)
   await page.getByLabel('Product name').fill(name)
   await page
     .getByLabel('Description', { exact: true })
     .fill('Created through the browser verification flow')
   await page.getByLabel('Unit cost (USD)').fill('12.50')
-  await page.getByLabel('Quantity on hand').fill('12')
+  await page.getByLabel('Opening stock').fill('12')
   await page.getByLabel('Reorder point').fill('20')
   await page.getByRole('button', { name: 'Create product', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Product created.' })).toBeVisible()
@@ -46,7 +46,7 @@ test('product UI creates, validates duplicate, edits, searches, filters, and dea
   await expect(row).toContainText('Low stock')
   await expect(row).toContainText('$12.50')
 
-  await page.getByRole('link', { name: 'New product', exact: true }).click()
+  await page.getByRole('link', { name: 'Add product', exact: true }).click()
   await page.getByLabel('SKU', { exact: false }).fill(sku)
   await page.getByLabel('Product name').fill('Duplicate attempt')
   await page.getByLabel('Unit cost (USD)').fill('3.25')
@@ -56,7 +56,9 @@ test('product UI creates, validates duplicate, edits, searches, filters, and dea
 
   await page.getByRole('link', { name: `Edit ${name}`, exact: true }).click()
   await page.getByLabel('Product name').fill(`${name} updated`)
-  await page.getByLabel('Quantity on hand').fill('30')
+  await expect(page.getByLabel('Quantity on hand')).toHaveAttribute('readonly', '')
+  await expect(page.getByLabel('Quantity on hand')).toHaveValue('12')
+  await page.getByLabel('Reorder point').fill('10')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Product updated.' })).toBeVisible()
   await page.getByRole('textbox', { name: 'Search records' }).fill(sku)
@@ -80,14 +82,14 @@ test('product UI creates, validates duplicate, edits, searches, filters, and dea
     unitCost: string
     quantityOnHand: number
   }
-  expect(product).toMatchObject({ active: false, unitCost: '12.50', quantityOnHand: 30 })
+  expect(product).toMatchObject({ active: false, unitCost: '12.50', quantityOnHand: 12 })
 })
 
 test('vendor UI creates, edits, searches by email, and deactivates', async ({ page, request }) => {
   const name = `Caribbean UI Supply ${runId}`
   const email = `ui-${runId}@example.com`
   await page.goto('/vendors')
-  await page.getByRole('link', { name: 'New vendor', exact: true }).click()
+  await page.getByRole('link', { name: 'Add vendor', exact: true }).click()
   await page.getByLabel('Vendor name').fill(name)
   await page.getByLabel('Email address').fill(email)
   await page.getByLabel('Phone number').fill('787-555-0101')
@@ -188,8 +190,9 @@ test('mobile navigation and forms fit the viewport', async ({ page }, testInfo) 
     width: window.innerWidth,
   }))
   expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width)
+  await page.getByRole('button', { name: 'Open navigation' }).click()
   await page.getByRole('link', { name: 'Products', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Products', exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'New product', exact: true }).click()
+  await page.getByRole('link', { name: 'Add product', exact: true }).click()
   await expect(page.getByLabel('Product name')).toBeVisible()
 })

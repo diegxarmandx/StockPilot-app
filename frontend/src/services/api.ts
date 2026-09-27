@@ -1,4 +1,13 @@
-import type { ErrorResponse, Product, ProductInput, Vendor, VendorInput } from '../types/api'
+import type {
+  ErrorResponse,
+  Product,
+  ProductInput,
+  ProductUpdateInput,
+  Vendor,
+  VendorInput,
+  PurchaseOrder,
+  PurchaseOrderInput,
+} from '../types/api'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').replace(/\/$/, '')
 
@@ -26,10 +35,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     })
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') throw error
-    throw new ApiError(
-      0,
-      'Unable to reach the API. Check that the backend is running and try again.',
-    )
+    throw new ApiError(0, 'Unable to connect. Please try again in a moment.')
   }
   if (!response.ok) {
     const body: Partial<ErrorResponse> | null = await response.json().catch(() => null)
@@ -45,7 +51,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 export const productApi = {
   create: (input: ProductInput) =>
     request<Product>('/api/products', { method: 'POST', body: JSON.stringify(input) }),
-  update: (id: number, input: ProductInput) =>
+  update: (id: number, input: ProductUpdateInput) =>
     request<Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
   deactivate: (id: number) =>
     request<Product>(`/api/products/${id}/deactivate`, { method: 'PATCH' }),
@@ -61,4 +67,16 @@ export const vendorApi = {
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
+}
+
+export const purchaseOrderApi = {
+  create: (input: PurchaseOrderInput) =>
+    request<PurchaseOrder>('/api/purchase-orders', { method: 'POST', body: JSON.stringify(input) }),
+  update: (id: number, input: PurchaseOrderInput) =>
+    request<PurchaseOrder>(`/api/purchase-orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  transition: (id: number, action: 'order' | 'cancel' | 'receive') =>
+    request<PurchaseOrder>(`/api/purchase-orders/${id}/${action}`, { method: 'POST' }),
 }

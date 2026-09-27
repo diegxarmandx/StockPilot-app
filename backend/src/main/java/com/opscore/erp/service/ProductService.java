@@ -42,13 +42,13 @@ public class ProductService {
 
     @Transactional
     public ProductResponse updateProduct(Long id, UpdateProductRequest request) {
-        Product product = find(id);
+        Product product = repository.findForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         if (repository.existsBySkuAndIdNot(request.sku(), id)) throw new DuplicateSkuException(request.sku());
         product.setSku(request.sku());
         product.setName(request.name());
         product.setDescription(request.description());
         product.setUnitCost(request.unitCost());
-        product.setQuantityOnHand(request.quantityOnHand());
         product.setReorderPoint(request.reorderPoint());
         product.setActive(request.active());
         return response(save(product));
@@ -56,7 +56,8 @@ public class ProductService {
 
     @Transactional
     public ProductResponse deactivateProduct(Long id) {
-        Product product = find(id);
+        Product product = repository.findForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", id));
         product.setActive(false);
         return response(save(product));
     }

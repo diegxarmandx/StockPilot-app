@@ -23,6 +23,8 @@ public abstract class TimestampedEntity {
         updatedAt = createdAt;
     }
 
+    public void markUpdated() { updatedAt = Instant.now(); }
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = Instant.now();

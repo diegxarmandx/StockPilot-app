@@ -40,13 +40,12 @@ export function VendorsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Purchasing / Master data"
         title="Vendors"
-        description="A reliable directory for the people who keep you supplied."
+        description="Manage suppliers used across purchase orders."
         action={
           <Link className="button primary" to="/vendors/new">
             <Plus size={17} />
-            New vendor
+            Add vendor
           </Link>
         }
       />
@@ -54,7 +53,6 @@ export function VendorsPage() {
         <div className="panel-heading">
           <h2>All vendors</h2>
           {catalog.data && <span className="count-badge">{catalog.data.totalElements}</span>}
-          <span className="panel-caption">Your supply network</span>
         </div>
         <CatalogToolbar
           key={catalog.search}
@@ -68,21 +66,25 @@ export function VendorsPage() {
         {catalog.loading ? (
           <LoadingState />
         ) : catalog.error ? (
-          <ErrorState message={catalog.error} retry={catalog.refresh} />
+          <ErrorState
+            title="Unable to load vendors."
+            message={catalog.error}
+            retry={catalog.refresh}
+          />
         ) : (
           catalog.data && (
             <>
               {catalog.data.content.length === 0 ? (
                 <EmptyState
-                  title="No vendors found"
+                  title={catalog.search || catalog.active ? 'No vendors found' : 'No vendors yet'}
                   description={
                     catalog.search || catalog.active
                       ? 'Try a different search or clear your filters.'
-                      : 'Create your first vendor to get started.'
+                      : 'Add a supplier before creating a purchase order.'
                   }
                 />
               ) : (
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0} role="region" aria-label="Vendor table">
                   <table>
                     <caption className="sr-only">Vendor catalog</caption>
                     <thead>
@@ -102,7 +104,9 @@ export function VendorsPage() {
                               <span className="vendor-avatar">
                                 {record.name.slice(0, 2).toUpperCase()}
                               </span>
-                              <strong className="record-name">{record.name}</strong>
+                              <strong className="record-name" title={record.name}>
+                                {record.name}
+                              </strong>
                             </div>
                           </td>
                           <td>{record.email || <span className="text-muted">—</span>}</td>

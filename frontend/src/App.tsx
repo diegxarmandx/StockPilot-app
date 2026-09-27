@@ -6,7 +6,11 @@ import { ProductsPage } from './pages/ProductsPage'
 import { ProductFormPage } from './pages/ProductFormPage'
 import { VendorsPage } from './pages/VendorsPage'
 import { VendorFormPage } from './pages/VendorFormPage'
+import { InventoryPage } from './pages/InventoryPage'
 import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage'
+
+import { PurchaseOrderDetailPage } from './pages/PurchaseOrderDetailPage'
+import { PurchaseOrderFormPage } from './pages/PurchaseOrderFormPage'
 
 export default function App() {
   return (
@@ -20,6 +24,13 @@ export default function App() {
           <Route path="vendors" element={<VendorsPage />} />
           <Route path="vendors/new" element={<VendorFormPage key="create-vendor" />} />
           <Route path="vendors/:id/edit" element={<VendorFormPage key="edit-vendor" />} />
+          <Route path="inventory" element={<InventoryPage />} />
+          <Route path="purchase-orders/new" element={<PurchaseOrderFormPage key="create-po" />} />
+          <Route
+            path="purchase-orders/:id/edit"
+            element={<PurchaseOrderFormPage key="edit-po" />}
+          />
+          <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
           <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
           <Route
             path="*"

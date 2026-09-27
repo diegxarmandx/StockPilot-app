@@ -10,7 +10,6 @@ public record UpdateProductRequest(
         @NotNull(message = "Unit cost is required")
         @DecimalMin(value = "0", message = "Unit cost must be zero or greater")
         @Digits(integer = 10, fraction = 2) BigDecimal unitCost,
-        @NotNull @Min(0) Integer quantityOnHand,
         @NotNull @Min(0) Integer reorderPoint,
         @NotNull Boolean active) {
     public UpdateProductRequest {

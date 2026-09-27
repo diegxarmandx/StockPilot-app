@@ -23,6 +23,7 @@ export function DeactivateDialog({
       ref={ref}
       className="confirm-dialog"
       aria-labelledby="deactivate-title"
+      aria-describedby="deactivate-description"
       onCancel={(event) => {
         event.preventDefault()
         if (!busy) onCancel()
@@ -32,7 +33,7 @@ export function DeactivateDialog({
         <Archive size={24} />
       </span>
       <h2 id="deactivate-title">Deactivate this record?</h2>
-      <p>
+      <p id="deactivate-description">
         <strong>{name}</strong> will be marked inactive. Its details will remain available, and you
         can reactivate it by editing the record.
       </p>

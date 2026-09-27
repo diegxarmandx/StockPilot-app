@@ -1,24 +1,25 @@
 import type { ReactNode } from 'react'
-
 export function PageHeader({
-  eyebrow,
   title,
   description,
   action,
+  badge,
 }: {
-  eyebrow: string
   title: string
   description: string
   action?: ReactNode
+  badge?: ReactNode
 }) {
   return (
     <header className="page-heading">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
+      <div className="page-heading-copy">
+        <div className="title-line">
+          <h1>{title}</h1>
+          {badge}
+        </div>
         <p className="page-description">{description}</p>
       </div>
-      {action}
+      {action && <div className="page-heading-actions">{action}</div>}
     </header>
   )
 }

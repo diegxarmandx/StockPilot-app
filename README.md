@@ -2,7 +2,7 @@
 
 StockPilot is a small ERP-style operations application focused on purchasing and inventory workflows. It is being built as a production-style full-stack project using Java, Spring Boot, React, TypeScript, and PostgreSQL.
 
-This repository implements **Phase 0 (foundation)** and **Phase 1 (products and vendors)** only.
+This repository implements **Phase 0 (foundation)**, **Phase 1 (products and vendors)**, **Phase 2 (purchase orders)**, and **Phase 3 (receiving and inventory history)**.
 
 ## Stack
 
@@ -58,7 +58,7 @@ Supabase PostgreSQL
 │       ├── components/      # Tables' controls, fields, feedback and dialogs
 │       ├── hooks/           # Abortable API reads and catalog query state
 │       ├── layouts/         # Shared workspace shell
-│       ├── pages/           # Catalogs, forms and phase placeholders
+│       ├── pages/           # Catalogs, forms and purchase orders
 │       ├── services/        # Central fetch client and mutations
 │       └── types/           # Typed API contracts
 ├── scripts/dev-backend.sh
@@ -69,7 +69,7 @@ Supabase PostgreSQL
 
 Controllers handle HTTP, services own business logic and transactions, and repositories persist entities. Search, filtering, stock status, and pagination are canonical on the backend. The frontend calls only Spring Boot; there is no Supabase SDK, Supabase Auth, or direct browser database access. The Java package `com.opscore.erp` remains for import compatibility; Maven coordinates are `com.stockpilot:stockpilot`.
 
-Money uses `BigDecimal` / `numeric(12,2)` and is returned as a decimal **string**, not a JavaScript floating-point amount.
+Money uses `BigDecimal` and is returned as a decimal **string**. Unit costs use `numeric(12,2)`; PO line totals, subtotal and total use `numeric(24,2)` to accommodate quantity multiplication. Frontend PO previews use integer cents (`BigInt`).
 
 ## Prerequisites
 
@@ -86,7 +86,7 @@ Maven is provided by the wrapper. On Windows use `mvnw.cmd`; the environment hel
 1. Create or select your Supabase development project. Open **Connect** in its dashboard.
 2. Select a **Direct connection** or **Session pooler** connection for this persistent Spring Boot process. Copy the actual host, port, database and username; do not construct a pooler hostname yourself. Direct connections depend on the available IP/network support; session pooling is suitable when your network needs IPv4. See [Supabase connection guidance](https://supabase.com/docs/guides/database/connecting-to-postgres).
 3. Use the **database password**, not an anon/publishable/service-role API key. StockPilot does not need Supabase API keys.
-4. For a dedicated StockPilot project, open **Integrations → Data API** and turn **Enable Data API** off before starting Spring Boot. JDBC and Table Editor remain the access paths for this application. Hibernate-created tables do not automatically receive RLS protection through the dashboard table-creation flow. If another application needs the Data API, keep StockPilot tables out of exposed access or enable RLS on `public.products` and `public.vendors` before adding data, with no public access policies. Do not grant `anon`/`authenticated` access for StockPilot. See [Supabase's Data API controls](https://supabase.com/docs/guides/api/securing-your-api).
+4. For a dedicated StockPilot project, open **Integrations → Data API** and turn **Enable Data API** off before starting Spring Boot. JDBC and Table Editor remain the access paths for this application. Hibernate-created tables do not automatically receive RLS protection through the dashboard table-creation flow. If another application needs the Data API, keep StockPilot tables out of exposed access or enable RLS on `public.products`, `public.vendors`, `public.purchase_orders`, `public.purchase_order_items` and `public.inventory_transactions` before adding data, with no public access policies. After the initial Hibernate startup, run [`supabase-purchase-orders.sql`](backend/src/main/resources/supabase-purchase-orders.sql) in Supabase SQL Editor to protect the PO tables, and [`supabase-inventory.sql`](backend/src/main/resources/supabase-inventory.sql) to protect the inventory ledger before receiving any orders. The existing database-owner JDBC connection continues to work; the script is not automatically applied to non-Supabase databases. Do not grant `anon`/`authenticated` access for StockPilot. See [Supabase's Data API controls](https://supabase.com/docs/guides/api/securing-your-api).
 5. Ensure the chosen database role can connect and create/alter/read/write tables and sequences in `public` while development uses `ddl-auto: update`. The connection dialog's database owner login supports this development setup. Do not enable Supabase Auth or add browser access policies.
 
 Create the local, ignored configuration:
@@ -105,6 +105,8 @@ VITE_API_BASE_URL=http://localhost:8080
 ```
 
 Keep username/password out of the URL. Quote values for shell loading, especially URLs containing `&` and passwords containing shell punctuation. If your password contains a single quote, use correct shell escaping or export it through your local secret/environment tooling instead of copying this quoting literally.
+
+**Upgrading an existing Phase 2 PostgreSQL database:** stop the backend and execute [`db/phase3-postgresql.sql`](backend/src/main/resources/db/phase3-postgresql.sql) in Supabase SQL Editor (or `psql` for a local database). This transactional, repeatable script adds `received_at` and widens the existing PO status check to include RECEIVED. Hibernate `update` does not update the old enum check by itself. It preserves existing records. Fresh databases get the new schema directly from Hibernate and do not need this upgrade script.
 
 Start the backend from the repository root:
 
@@ -133,7 +135,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:5173**. The sidebar should show **API Status: Connected**. `GET http://localhost:8080/api/health` returns `{"status":"UP"}`; this checks API reachability, not ongoing database readiness. Confirm database access by loading or creating a product/vendor.
+Open **http://localhost:5173** and load Products or Vendors to confirm connectivity. `GET http://localhost:8080/api/health` returns `{"status":"UP"}`; this checks API reachability, not ongoing database readiness. Confirm database access by loading or creating a product/vendor.
 
 Vite reads root `.env` through `envDir` and exposes only `VITE_` variables. **Never put database credentials into a `VITE_` variable.** The browser only receives the Spring Boot API origin. Restart Vite after changing its environment. Port 5173 is strict so CORS origins stay predictable.
 
@@ -229,10 +231,12 @@ Test-only settings: `TEST_DB_URL`, `TEST_DB_USERNAME`, and `TEST_DB_PASSWORD` ar
 - Dedicated create/edit pages, client validation, backend field errors, success notices and confirmation dialogs.
 - Unique trimmed product SKUs, database constraints, nonnegative quantities/costs, UTC creation/update timestamps.
 - Backend stock status: inactive first; otherwise zero stock, at/below reorder point, or in stock.
-- Basic overview with real catalog counts. Purchase orders and further dashboard insights are placeholders.
+- Backend-aggregated dashboard: product count, open POs, inventory value, low stock and recent inventory activity.
+- Purchase-order list, search, status filtering, pagination, create, detail, draft edit, order, cancel and full-receipt flows.
+- Transactional inventory increases, immutable receipt history, duplicate prevention and product-level inventory activity links.
 - Responsive layout, keyboard-accessible controls, labelled fields, and local fonts.
 
-The frontend displays USD. There is no currency conversion or inventory valuation logic. Initial quantity can be entered in product forms during this phase; inventory transactions will take ownership of stock changes in a later phase.
+The frontend displays USD without currency conversion. Opening quantity can be entered only when creating a product. Existing stock is read-only in product forms and cannot be changed through PUT; subsequent increases happen through the receiving service. Inventory valuation uses current product unit costs, not an accounting cost-layer model.
 
 ## API
 
@@ -251,6 +255,16 @@ All endpoints return JSON. Successful creates return **201** with a `Location` h
 | GET | `/api/vendors/{id}` | Fetch vendor |
 | PUT | `/api/vendors/{id}` | Fully update vendor |
 | PATCH | `/api/vendors/{id}/deactivate` | Soft-deactivate vendor |
+| GET | `/api/purchase-orders` | Paginated PO search and filters |
+| POST | `/api/purchase-orders` | Create a draft |
+| GET | `/api/purchase-orders/{id}` | Fetch a PO with items |
+| PUT | `/api/purchase-orders/{id}` | Replace vendor/items of a draft |
+| POST | `/api/purchase-orders/{id}/order` | Mark a draft ordered |
+| POST | `/api/purchase-orders/{id}/cancel` | Cancel a draft |
+| POST | `/api/purchase-orders/{id}/receive` | Receive every item of an ordered PO once |
+| GET | `/api/inventory-transactions` | Read-only paginated ledger with filters |
+| GET | `/api/products/{productId}/inventory-transactions` | Read-only paginated product history |
+| GET | `/api/dashboard` | Backend aggregates and five latest ledger entries |
 
 ### Search and pagination
 
@@ -289,9 +303,76 @@ Product create requires `sku`, `name`, and `unitCost`; omitted/null quantity and
 
 Vendor create requires `name` (maximum 160). Email is optional and validated when supplied (maximum 254); phone is optional (maximum 40). Blank optional strings become null. Active defaults to true.
 
-`PUT` replaces all editable fields: product updates require SKU, name, unit cost, quantity, reorder point and active; vendor updates require name and active. Omitted optional text fields are cleared. Send `active: true` when editing to reactivate a record.
+`PUT` replaces all editable fields: product updates require SKU, name, unit cost, reorder point and active; `quantityOnHand` is rejected on PUT; vendor updates require name and active. Omitted optional text fields are cleared. Send `active: true` when editing to reactivate a record.
 
 Product responses add `id`, `createdAt`, `updatedAt` and canonical `stockStatus` (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`, `INACTIVE`). Vendor responses add ID and timestamps. Responses never expose JPA entities.
+
+### Purchase orders
+
+```json
+{
+  "vendorId": 1,
+  "items": [
+    { "productId": 1, "quantity": 10 },
+    { "productId": 3, "quantity": 5 }
+  ]
+}
+```
+
+Send this shape to POST or PUT; substitute existing active record IDs. Requests cannot supply prices, totals, PO numbers, status or timestamps. Vendor/products must exist and be active. Orders require 1–100 items with positive integer quantities (maximum 2,147,483,647). Duplicate product IDs are rejected with `400 DUPLICATE_PRODUCT`.
+
+- Workflow: **DRAFT → ORDERED → RECEIVED**, or **DRAFT → CANCELLED**. Only drafts can be edited. RECEIVED and CANCELLED are terminal; ORDERED permits only receiving. Repeated or invalid transitions and non-draft edits return **409**. Ordering sets `orderedAt` without changing stock. Receiving sets `receivedAt` and updates stock atomically.
+- The service copies each new item's current product price. **Existing item prices remain unchanged**, including when quantities or the vendor are edited. New products added to a draft use their current catalog cost. Removing a line, saving, and later adding it again creates a new price snapshot. Product names/SKUs and vendor details are live references; prices are snapshots.
+- `lineTotal = quantity × saved unitCost`; `subtotal = sum(lineTotal)`; `total = subtotal`. All calculations use `BigDecimal`, without tax or floating-point arithmetic. The browser preview is advisory; the server confirms saved totals.
+- An independent database sequence generates numbers such as `PO-2026-000001`. The year is UTC; the sequence is global and does not reset annually. Rollbacks may leave gaps. The number is immutable and unrelated to the row ID. `schema.sql` creates the sequence idempotently during startup; it is never reset on restart.
+- PO creation and mutations are transactional. Update/order/cancel acquire the same parent-row write lock so competing status changes cannot both succeed. Item removal uses orphan deletion within a draft; there is no purchase-order DELETE endpoint.
+- List parameters: `search` matches PO number or vendor name (literal, case-insensitive); `status=DRAFT|ORDERED|CANCELLED|RECEIVED`; `vendorId`; `page`; `size`. Pagination bounds match the catalog. Example: `/api/purchase-orders?status=DRAFT&vendorId=1&search=PO-2026&page=0&size=20`.
+- Lists return summaries with `itemCount`, vendor summary, totals and timestamps. Detail/mutation responses include item IDs, product IDs, SKU/name, quantity, saved unit cost and line total. All responses are DTOs.
+- Missing references return 404; inactive records and duplicate products return 400; invalid quantities return 400 `VALIDATION_ERROR` with paths such as `items[0].quantity`.
+
+The relational model adds `purchase_orders` (vendor FK, unique PO number, status, totals, timestamps), `purchase_order_items` (PO/product FKs, quantity, saved unit cost, line total), and `purchase_order_number_seq`. Indexes cover vendor/status and item product lookups. A unique `(purchase_order_id, product_id)` constraint prevents duplicate lines; checks enforce positive quantities and consistent line/PO totals. The item uniqueness index also supports parent lookups. Hibernate `update` remains the development schema mechanism; versioned production migrations are deferred.
+
+React routes: `/purchase-orders`, `/purchase-orders/new`, `/purchase-orders/:id`, `/purchase-orders/:id/edit`. Vendor/product selectors search and paginate active records on the backend. Confirmation dialogs explain ordering, cancellation and the irreversible inventory increase on receipt.
+
+### Receiving and inventory history
+
+```text
+DRAFT ──→ ORDERED ──→ RECEIVED
+  └─────→ CANCELLED
+```
+
+`POST /api/purchase-orders/{id}/receive` takes no request body and returns the updated PO DTO. Only ORDERED is receivable. DRAFT/CANCELLED return `409 PURCHASE_ORDER_NOT_RECEIVABLE`; a second receipt returns `409 PURCHASE_ORDER_ALREADY_RECEIVED`; missing POs return 404. A stock balance beyond the supported integer maximum returns `409 INVENTORY_UPDATE_FAILED`. Inactive product/vendor records do not prevent receiving an already-ordered commitment. Receipt never changes product costs or the saved PO item prices.
+
+The public service method uses **`@Transactional`** around the complete receipt: lock the PO, load its lines, lock products, read balances, increment quantities, insert one ledger entry per line, and mark the PO RECEIVED with `receivedAt`. A failed item, constraint or final save rolls back **every balance, ledger row and PO change**, including statements already flushed to the database. Flushing an item is not committing it.
+
+Duplicate protection has two layers:
+
+1. A **pessimistic write lock on the PO row** serializes competing receipts. A waiting request sees RECEIVED after the first commits and returns 409.
+2. A database unique constraint on **`(reference_type, reference_id, product_id)`** rejects a second receipt entry for the same PO/product even if application logic regresses. Full receiving and no duplicate PO product lines make this one-entry rule appropriate for this phase.
+
+**Product rows are also write-locked in ascending ID order.** This prevents lost balance increments when different POs contain the same products, and consistent lock ordering avoids circular waits. Product metadata edits/deactivation use the same product lock so an ordinary edit cannot overwrite concurrent receiving. These are ordinary database row locks, following [PostgreSQL's locking guidance](https://www.postgresql.org/docs/current/explicit-locking.html); no distributed lock is involved.
+
+`InventoryTransaction` stores product FK, type `PURCHASE_RECEIPT`, positive quantity, balance before/after, reference type `PURCHASE_ORDER`, the **PO business number** as `referenceId`, and creation time. Checks enforce nonnegative balances and `balanceAfter - balanceBefore = quantity`. Indexes support product history, newest-first activity and reference lookup. Entities expose getters, use Hibernate `@Immutable` and non-updatable columns; the application has no ledger update/delete methods or HTTP write endpoints. Database owners still retain administrative SQL access; this is application-level immutable history, not a tamper-proof audit system.
+
+For stock 20 and an ordered quantity of 50:
+
+```text
+Product.quantityOnHand: 20 → 70
+Ledger: PURCHASE_RECEIPT, +50, before 20, after 70, reference PO-2026-000001
+```
+
+**Why store both balance and history?** `Product.quantityOnHand` makes current-stock reads efficient. `InventoryTransaction` retains how a balance changed, supporting debugging, traceability and operational auditing. Opening stock (including existing Phase 1/2 balances) is the baseline; it is not backfilled into receipt history. Later changes use the receiving workflow.
+
+Ledger API examples:
+
+```text
+GET /api/inventory-transactions?productId=1&type=PURCHASE_RECEIPT&referenceId=PO-2026-000001&page=0&size=20
+GET /api/products/1/inventory-transactions?page=0&size=20
+```
+
+General filters are optional; `referenceId` is an exact, trimmed, case-sensitive PO number. Both routes use the usual page metadata and bounds, newest creation time then ID first. The product route returns 404 for a missing product. `/inventory` supports reference filtering, pagination and product-scoped history; the SKU links and Products table history actions select a product.
+
+`GET /api/dashboard` calculates all four cards in one database aggregate statement: all products, DRAFT + ORDERED POs, `sum(quantityOnHand × current unitCost)` for all products including inactive ones, and active products at/below reorder point (including zero stock). Inventory value is a BigDecimal decimal string. The response also includes five recent ledger entries. React does not download the catalog to calculate these values. After receiving, PO detail refreshes; navigating to Products, Inventory or Dashboard fetches current backend data.
 
 ### Errors
 
@@ -316,11 +397,11 @@ cd backend
 ./mvnw test
 ```
 
-The default test profile overrides the main datasource with H2; no `DB_*` variables or live Supabase access are required. Coverage includes product/vendor lifecycle, validation, exact monetary values, concurrent duplicate SKU handling, database constraints, stock status, search, pagination, CORS and no DELETE routes. Additional tests verify that seeding requires explicit opt-in and that repeated runs preserve edits without duplicates.
+The default test profile overrides the main datasource with H2; no `DB_*` variables or live Supabase access are required. Coverage includes product/vendor lifecycle, validation, exact monetary values, concurrent duplicate SKU handling, database constraints, stock status, search, pagination, CORS and no DELETE routes. Additional tests verify that seeding requires explicit opt-in and that repeated runs preserve edits without duplicates. Purchase-order tests cover exact totals, saved prices across edits, atomic rollback, validation, database constraints, pagination/search/filters, unique concurrent numbering, allowed/forbidden transitions, concurrent transition conflicts, and unchanged inventory before receipt. Receiving tests cover multi-item balances and references, repeat receipts, terminal states, deterministic partial-failure rollback, same/different-PO concurrency, concurrent product edits, ledger constraints/filtering, dashboard aggregates and the repeatable Phase 2 constraint upgrade.
 
 ### Backend: isolated PostgreSQL
 
-Use only a **dedicated disposable local test database**; this profile creates/drops tables and the tests clear catalog data. Main `DB_*` settings are never used by this profile.
+Use only a **dedicated disposable local test database**; this profile creates/drops tables and the tests clear purchase-order and catalog data. Main `DB_*` settings are never used by this profile.
 
 ```bash
 # From repository root, with the optional local Compose database running:
@@ -335,7 +416,7 @@ TEST_DB_PASSWORD="$LOCAL_DB_PASSWORD" \
 ./mvnw -Dtest.profile=postgres-test test
 ```
 
-The same profile can target an isolated native local PostgreSQL instance. Seed integration tests always use their own H2 database, even when the catalog suite uses PostgreSQL.
+The same profile can target an isolated native local PostgreSQL instance. Seed integration tests always use their own H2 database, even when the catalog and purchase-order suites use PostgreSQL.
 
 ### Frontend
 
@@ -360,7 +441,7 @@ E2E_ALLOW_WRITES=true npm run test:e2e
 E2E_ALLOW_WRITES=true PW_CHANNEL=chrome npm run test:e2e
 ```
 
-Coverage includes branding/title, real product/vendor forms, duplicate feedback, server pagination, filters, page-reload persistence, mobile layout, health, placeholders, loading/empty/error/retry states. Created fixtures are retained as inactive. The first smoke test expects a nonempty catalog.
+Coverage includes branding/title, real product/vendor forms, duplicate feedback, server pagination, filters, page-reload persistence, mobile layout, health, loading/empty/error/retry states, and the PO create/edit/search/order/read-only and cancellation workflows. The receiving flow checks 20 → 70 stock, receipt confirmation, RECEIVED state, ledger balances/reference, dashboard activity and rejection of a second receipt. Catalog lifecycle fixtures are retained as inactive; PO fixtures and their supplier/product references remain in the disposable database. The first smoke test expects a nonempty catalog.
 
 ### Manual Supabase verification
 
@@ -374,12 +455,51 @@ After configuring your private `DB_*` values and starting Spring Boot and React:
 6. Search by product SKU/name and vendor name/email.
 7. Deactivate each record; verify `active=false` in Table Editor and the inactive status in StockPilot.
 
-Hibernate creates the `products` and `vendors` tables on first successful startup. No manual table definitions, API keys, Supabase Auth, or JavaScript SDK are needed. If startup fails, check the selected endpoint/username, password, SSL parameters, network reachability and any project database network restrictions. The health endpoint alone is not a database verification.
+Hibernate creates the `products`, `vendors`, `purchase_orders`, `purchase_order_items` and `inventory_transactions` tables on successful startup; the SQL initializer creates the independent PO number sequence. No manual table definitions, API keys, Supabase Auth, or JavaScript SDK are needed. If startup fails, check the selected endpoint/username, password, SSL parameters, network reachability and any project database network restrictions. The health endpoint alone is not a database verification.
 
 See [the verification report](docs/verification.md) for checks actually run and remaining machine-specific checks. The completed live Supabase seed and restart checks are recorded in [the seed verification report](docs/seed-verification.md).
 
-## Phase 2 and current limits
+### Manual purchase-order verification
 
-Phase 2 will introduce **Purchase Orders**, **Purchase Order Items**, and the **receiving workflow**. No purchase-order entities or business workflows exist yet.
+1. Create a draft using existing active vendors/products; inspect `public.purchase_orders` and `public.purchase_order_items` in Table Editor.
+2. Compare each saved cost with the product price at creation; verify quantity × cost, subtotal and total.
+3. Edit quantities/vendor in the draft; confirm the database rows and totals update while existing line prices stay fixed.
+4. Mark ordered; confirm `status=ORDERED` and `ordered_at` are persisted.
+5. Attempt PUT on the ordered PO and confirm HTTP 409. The UI should show read-only and no Edit action.
+6. Restart Spring Boot with the same credentials and `SEED_DATA_ENABLED=false`; reopen the PO and confirm it persists. Inventory quantities must remain unchanged.
 
-Authentication / Spring Security, warehouse transfers, invoices, payments, AWS deployment, production migrations and inventory-transaction controls are intentionally outside this scope. The application is a local development portfolio project, not an authenticated production deployment. Hibernate `update` is temporary; concurrency controls for stock transactions and production migrations belong in future work.
+See [Phase 2 verification](docs/phase2-verification.md) for actual isolated test results and the separate live Supabase checks.
+
+### Manual receiving verification
+
+After the isolated automated suites pass:
+
+1. Note a known product's stock; create a new PO for a known quantity and mark it ORDERED. Stock must still be unchanged.
+2. Receive the PO from its detail page. Confirm stock increased by exactly the ordered quantity.
+3. Inspect `public.inventory_transactions`: PURCHASE_RECEIPT, correct before/after balances, quantity and PO business-number reference. Confirm PO status RECEIVED and populated `received_at`.
+4. Repeat POST receive: expect 409, unchanged stock, and no extra ledger row.
+5. Restart Spring Boot with the same credentials and seeding off. Verify the balance, receipt history and RECEIVED PO persist.
+6. Keep unrelated existing data intact. This manual verification intentionally creates a real receipt; do not run automated mutation suites against Supabase.
+
+See [Phase 3 verification](docs/phase3-verification.md) for actual test and live-database results.
+
+## User interface
+
+The interface uses a shared dark slate/blue palette, locally bundled DM Sans typography, consistent status badges, compact tables, and accessible forms. Desktop navigation becomes a keyboard-accessible drawer on smaller screens. Tables scroll within their own labelled regions; forms stack on mobile.
+
+Key screens for a portfolio walkthrough:
+
+- **Dashboard:** real inventory value, product/open-order/low-stock counts, recent orders and receiving activity.
+- **Products:** paginated catalog, stock status, search, filters and grouped create/edit forms. Opening stock defaults to zero; subsequent product edits keep stock read-only.
+- **Purchase Orders:** draft editor with an order summary, state-specific detail actions and receipt confirmation.
+- **Inventory:** receipt quantities, before/after balances and purchase-order references.
+
+Screenshots are intentionally not committed. To add them, capture these four screens from a clean, approved dataset at a consistent desktop viewport (1440 × 1000 is suitable), review for private business information, then save selected images under `docs/screenshots/` and link them here. Playwright generates review screenshots in ignored `frontend/test-results/`; those include disposable test fixtures and are not portfolio assets. Its UI checks also cover 320, 390, 768, 1024, 1440 and 1920px widths, keyboard drawer navigation, loading/error/empty states and long content.
+
+See [Phase 4 verification](docs/phase4-verification.md) for executed checks, visual findings and intentional scope limits.
+
+## Current limits
+
+Partial receipts, individual-line receiving, warehouses/transfers, reservations, manual stock adjustments, sales orders, auth/RBAC, invoices/payments, tax, three-way matching, notifications and a full audit-event framework are outside this phase.
+
+Authentication / Spring Security, warehouse transfers, invoices, payments, AWS deployment, and production migrations are intentionally outside this scope. The application is a local development portfolio project, not an authenticated production deployment. Hibernate `update` is temporary; production migration tooling belongs in future work; receiving already has transactional and concurrency controls.

@@ -59,6 +59,58 @@ export interface ErrorResponse {
   errors: Record<string, string>
 }
 
-export interface HealthResponse {
-  status: 'UP'
+export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'CANCELLED' | 'RECEIVED'
+export type VendorChoice = Pick<Vendor, 'id' | 'name' | 'active'>
+export type ProductChoice = Pick<Product, 'id' | 'name' | 'sku' | 'active' | 'unitCost'>
+export interface PurchaseOrderItem {
+  id: number
+  productId: number
+  sku: string
+  productName: string
+  productActive: boolean
+  quantity: number
+  unitCost: string
+  lineTotal: string
+}
+export interface PurchaseOrderSummary {
+  id: number
+  poNumber: string
+  vendor: VendorChoice
+  status: PurchaseOrderStatus
+  itemCount: number
+  subtotal: string
+  total: string
+  createdAt: string
+  updatedAt: string
+  orderedAt: string | null
+  receivedAt: string | null
+}
+export interface PurchaseOrder extends Omit<PurchaseOrderSummary, 'itemCount'> {
+  items: PurchaseOrderItem[]
+}
+export interface PurchaseOrderInput {
+  vendorId: number
+  items: { productId: number; quantity: number }[]
+}
+
+export type ProductUpdateInput = Omit<ProductInput, 'quantityOnHand'>
+export interface InventoryTransaction {
+  id: number
+  productId: number
+  sku: string
+  productName: string
+  type: 'PURCHASE_RECEIPT'
+  quantity: number
+  balanceBefore: number
+  balanceAfter: number
+  referenceType: 'PURCHASE_ORDER'
+  referenceId: string
+  createdAt: string
+}
+export interface Dashboard {
+  products: number
+  openPurchaseOrders: number
+  inventoryValue: string
+  lowStockItems: number
+  recentInventoryActivity: InventoryTransaction[]
 }

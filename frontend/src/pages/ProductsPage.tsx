@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Archive, Pencil, Plus } from 'lucide-react'
+import { Archive, Pencil, Plus, History } from 'lucide-react'
 import type { Product } from '../types/api'
 import { productApi, errorMessage } from '../services/api'
 import { useCatalog } from '../hooks/useCatalog'
@@ -41,13 +41,12 @@ export function ProductsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Inventory / Master data"
         title="Products"
-        description="Keep your catalog organized and your stock levels in view."
+        description="Manage products, pricing, stock levels, and reorder thresholds."
         action={
           <Link className="button primary" to="/products/new">
             <Plus size={17} />
-            New product
+            Add product
           </Link>
         }
       />
@@ -55,7 +54,6 @@ export function ProductsPage() {
         <div className="panel-heading">
           <h2>All products</h2>
           {catalog.data && <span className="count-badge">{catalog.data.totalElements}</span>}
-          <span className="panel-caption">Your inventory, at a glance</span>
         </div>
         <CatalogToolbar
           key={catalog.search}
@@ -69,21 +67,25 @@ export function ProductsPage() {
         {catalog.loading ? (
           <LoadingState />
         ) : catalog.error ? (
-          <ErrorState message={catalog.error} retry={catalog.refresh} />
+          <ErrorState
+            title="Unable to load products."
+            message={catalog.error}
+            retry={catalog.refresh}
+          />
         ) : (
           catalog.data && (
             <>
               {catalog.data.content.length === 0 ? (
                 <EmptyState
-                  title="No products found"
+                  title={catalog.search || catalog.active ? 'No products found' : 'No products yet'}
                   description={
                     catalog.search || catalog.active
                       ? 'Try a different search or clear your filters.'
-                      : 'Create your first product to get started.'
+                      : 'Add your first product to begin building your catalog.'
                   }
                 />
               ) : (
-                <div className="table-scroll">
+                <div className="table-scroll" tabIndex={0} role="region" aria-label="Product table">
                   <table>
                     <caption className="sr-only">Product catalog</caption>
                     <thead>
@@ -102,11 +104,18 @@ export function ProductsPage() {
                         <tr key={record.id}>
                           <td className="mono sku-cell">{record.sku}</td>
                           <td>
-                            <strong className="record-name">{record.name}</strong>
-                            <span className="record-description">{record.description || '—'}</span>
+                            <strong className="record-name" title={record.name}>
+                              {record.name}
+                            </strong>
+                            <span
+                              className="record-description"
+                              title={record.description || undefined}
+                            >
+                              {record.description || '—'}
+                            </span>
                           </td>
                           <td className="numeric mono">{formatMoney(record.unitCost)}</td>
-                          <td className="numeric">
+                          <td className={`numeric stock-${record.stockStatus.toLowerCase()}`}>
                             <strong>{record.quantityOnHand.toLocaleString()}</strong>
                             <span className="unit-label"> units</span>
                           </td>
@@ -118,6 +127,14 @@ export function ProductsPage() {
                           </td>
                           <td>
                             <div className="row-actions">
+                              <Link
+                                className="icon-button"
+                                to={`/inventory?productId=${record.id}`}
+                                aria-label={`Inventory history for ${record.name}`}
+                                title="Inventory history"
+                              >
+                                <History size={15} />
+                              </Link>
                               <Link
                                 className="icon-button"
                                 aria-label={`Edit ${record.name}`}

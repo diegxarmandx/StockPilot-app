@@ -88,8 +88,7 @@ function VendorForm({ vendor }: { vendor?: Vendor }) {
         Back to vendors
       </Link>
       <PageHeader
-        eyebrow="Purchasing / Vendor details"
-        title={vendor ? 'Edit vendor' : 'New vendor'}
+        title={vendor ? 'Edit vendor' : 'Add vendor'}
         description="Keep supplier information organized and easy to find."
       />
       <form className="record-form" onSubmit={submit}>

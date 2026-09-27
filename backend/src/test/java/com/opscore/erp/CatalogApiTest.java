@@ -32,9 +32,12 @@ class CatalogApiTest {
     @Autowired ProductRepository products;
     @Autowired VendorRepository vendors;
     @Autowired JdbcTemplate jdbc;
+    @Autowired com.opscore.erp.repository.PurchaseOrderRepository orders;
 
     @BeforeEach
     void cleanDatabase() {
+        jdbc.update("delete from inventory_transactions");
+        orders.deleteAll();
         products.deleteAll();
         vendors.deleteAll();
     }
@@ -116,7 +119,7 @@ class CatalogApiTest {
         long id = created.get("id").asLong();
         mvc.perform(get("/api/products/" + id)).andExpect(status().isOk()).andExpect(jsonPath("$.sku").value("LIFE"));
         mvc.perform(put("/api/products/" + id).contentType(MediaType.APPLICATION_JSON)
-                .content(productBody("LIFE-EDIT", "Updated gloves", 10, 10, true)))
+                .content(productUpdateBody("LIFE-EDIT", "Updated gloves", 100, true)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("Updated gloves"))
                 .andExpect(jsonPath("$.stockStatus").value("LOW_STOCK"))
                 .andExpect(jsonPath("$.createdAt").value(created.get("createdAt").asText()));
@@ -131,7 +134,7 @@ class CatalogApiTest {
         product("FIRST", "First", 0, 0, true);
         long second = product("SECOND", "Second", 0, 0, true).get("id").asLong();
         mvc.perform(put("/api/products/" + second).contentType(MediaType.APPLICATION_JSON)
-                .content(productBody("FIRST", "Second", 0, 0, true)))
+                .content(productUpdateBody("FIRST", "Second", 0, true)))
                 .andExpect(status().isConflict());
         mvc.perform(put("/api/products/" + second).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"sku\":\"SECOND\",\"name\":\"Second\",\"unitCost\":\"1\"}"))
@@ -286,6 +289,11 @@ class CatalogApiTest {
     private String productBody(String sku, String name, int stock, int reorder, boolean active) throws Exception {
         return mapper.writeValueAsString(Map.of("sku", sku, "name", name, "unitCost", "12.50",
                 "quantityOnHand", stock, "reorderPoint", reorder, "active", active));
+    }
+
+    private String productUpdateBody(String sku, String name, int reorder, boolean active) throws Exception {
+        return mapper.writeValueAsString(Map.of("sku", sku, "name", name, "unitCost", "12.50",
+                "reorderPoint", reorder, "active", active));
     }
 
     private JsonNode vendor(String name, String email, boolean active) throws Exception {

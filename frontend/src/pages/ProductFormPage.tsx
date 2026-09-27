@@ -82,8 +82,16 @@ function ProductForm({ product }: { product?: Product }) {
       reorderPoint: Number(values.reorderPoint),
     }
     try {
-      if (product) await productApi.update(product.id, input)
-      else await productApi.create(input)
+      if (product) {
+        await productApi.update(product.id, {
+          sku: input.sku,
+          name: input.name,
+          description: input.description,
+          unitCost: input.unitCost,
+          reorderPoint: input.reorderPoint,
+          active: input.active,
+        })
+      } else await productApi.create(input)
       notify(product ? 'Product updated.' : 'Product created.')
       navigate('/products')
     } catch (cause) {
@@ -100,9 +108,8 @@ function ProductForm({ product }: { product?: Product }) {
         Back to products
       </Link>
       <PageHeader
-        eyebrow="Inventory / Product details"
-        title={product ? 'Edit product' : 'New product'}
-        description="The essential details that keep your catalog consistent."
+        title={product ? 'Edit product' : 'Add product'}
+        description="Set product details, pricing, and reorder thresholds."
       />
       <form className="record-form" onSubmit={submit}>
         {error && <ErrorState message={error} />}
@@ -143,8 +150,8 @@ function ProductForm({ product }: { product?: Product }) {
           </section>
           <section className="form-section">
             <div className="form-section-intro">
-              <h2>Cost & stock</h2>
-              <p>Set the unit cost and your initial inventory levels.</p>
+              <h2>Pricing</h2>
+              <p>Set the current purchase cost per unit.</p>
             </div>
             <div className="form-fields">
               <Field id="unitCost" label="Unit cost (USD)" required error={fields.unitCost}>
@@ -158,15 +165,27 @@ function ProductForm({ product }: { product?: Product }) {
                   placeholder="0.00"
                 />
               </Field>
+            </div>
+          </section>
+          <section className="form-section">
+            <div className="form-section-intro">
+              <h2>Inventory settings</h2>
+              <p>Set a reorder threshold to flag low stock.</p>
+            </div>
+            <div className="form-fields">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <Field
                   id="quantityOnHand"
-                  label="Quantity on hand"
+                  label={product ? 'Quantity on hand' : 'Opening stock'}
                   required
                   error={fields.quantityOnHand}
                 >
                   <input
                     {...inputProps('quantityOnHand')}
+                    readOnly={Boolean(product)}
+                    aria-describedby={
+                      fields.quantityOnHand ? 'quantityOnHand-error stock-help' : 'stock-help'
+                    }
                     type="number"
                     required
                     min="0"
@@ -185,11 +204,12 @@ function ProductForm({ product }: { product?: Product }) {
                   />
                 </Field>
               </div>
-              <div className="info-note">
+              <div className="info-note" id="stock-help">
                 <Info size={17} />
                 <p>
-                  Stock can be entered during initial setup. Inventory transactions will manage
-                  future changes.
+                  {product
+                    ? 'Stock is read-only. Receive an ordered purchase order to increase inventory.'
+                    : 'Start at zero unless you already hold stock. Receive purchase orders to add inventory.'}
                 </p>
               </div>
             </div>
